@@ -215,7 +215,7 @@ export default function UploadPage() {
         const extractRes = await fetch('https://amit098-legal-lens.hf.space/extract-text', {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.NEXT_HF_TOKEN}`,
+            "Authorization": `Bearer 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`,
             "api_key": "amit123"
           },
           body: formData
