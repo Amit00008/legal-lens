@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
   // Define routes
   const protectedRoutes = ['/dashboard', '/upload', '/analysis']
   const authRoutes = ['/login', '/signup']
-  const publicRoutes = ['/shared', '/privacy', '/support', '/']
+  const publicRoutes = ['/shared', '/privacy', '/support', '/terms', '/status', '/']
   
   const pathname = request.nextUrl.pathname
   
