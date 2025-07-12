@@ -7,6 +7,17 @@
 
 > **AI-powered legal document analyzer for freelancers, startups, and small businesses**
 
+## 🌐 Live Demo
+
+**🚀 Try LegalLens AI Live:** [https://legalens.felixify.in](https://legalens.felixify.in)
+
+## 🔗 Repository Links
+
+- **Frontend (Next.js):** [https://github.com/Amit00008/legal-lens](https://github.com/Amit00008/LegalLens) - This repository
+- **Backend (Python ML):** [https://github.com/Amit00008/LegalLens](https://github.com/Amit00008/LegalLens) - Python ML server and AI models
+
+> **💡 Want to contribute?** Check out our Python ML backend repository for AI model improvements and server enhancements!
+
 LegalLens AI is a sophisticated web application that uses artificial intelligence to analyze legal documents, contracts, and agreements. It provides instant insights, risk detection, and expert recommendations to help users understand complex legal documents without requiring legal expertise.
 
 ## 🌟 Features
@@ -468,6 +479,17 @@ We welcome contributions! Please follow these steps:
 - Add tests for new features
 - Update documentation as needed
 - Follow the existing code style
+
+### Backend Development
+
+For AI/ML model improvements and server enhancements, check out our Python backend repository:
+
+- **Python ML Backend**: [https://github.com/Amit00008/LegalLens](https://github.com/Amit00008/LegalLens)
+- **AI Model Improvements**: Contribute to model fine-tuning and optimization
+- **Server Enhancements**: Help improve the Hugging Face server performance
+- **API Development**: Enhance the ML API endpoints and response handling
+
+> **💡 Looking to contribute to the AI/ML side?** The Python backend repository contains the machine learning models, Hugging Face server code, and AI processing logic. Perfect for data scientists and ML engineers!
 
 ## 📝 License
 
