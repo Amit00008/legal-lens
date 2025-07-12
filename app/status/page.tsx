@@ -48,7 +48,7 @@ export default function StatusPage() {
       
       // Add authorization headers for Hugging Face API
       if (endpoint.url.includes('hf.space')) {
-        headers['Authorization'] = 'Bearer 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'
+        headers['Authorization'] = `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}`
         headers['api-key'] = 'amit123'
       }
       

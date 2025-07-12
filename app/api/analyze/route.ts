@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer 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',
+          'Authorization': `Bearer ${process.env.NEXT_HF_TOKEN}`,
           'api-key': 'amit123'
         },
         body: JSON.stringify({ legal_text: pdfText })
