@@ -54,8 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Handle successful sign in
       if (event === "SIGNED_IN" && session) {
-        const redirectTo = new URLSearchParams(window.location.search).get("redirectTo") || "/dashboard"
-        router.push(redirectTo)
+        const redirectTo = new URLSearchParams(window.location.search).get("redirectTo")
+        if (redirectTo) {
+          router.push(redirectTo)
+        } else {
+          router.push("/dashboard")
+        }
       }
 
       // Handle sign out
