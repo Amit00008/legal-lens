@@ -76,7 +76,6 @@ async function startBackgroundAnalysis(documentId: string, pdfText: string, supa
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer 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`,
           'api-key': 'amit123'
         },
         body: JSON.stringify({ legal_text: pdfText })
