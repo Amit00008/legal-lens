@@ -13,7 +13,7 @@
 
 ## 🔗 Repository Links
 
-- **Frontend (Next.js):** [https://github.com/Amit00008/legal-lens](https://github.com/Amit00008/LegalLens) - This repository
+- **Frontend (Next.js):** [https://github.com/Amit00008/legal-lens](https://github.com/Amit00008/legal-lens) - This repository
 - **Backend (Python ML):** [https://github.com/Amit00008/LegalLens](https://github.com/Amit00008/LegalLens) - Python ML server and AI models
 
 > **💡 Want to contribute?** Check out our Python ML backend repository for AI model improvements and server enhancements!
