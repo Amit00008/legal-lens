@@ -60,7 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Handle sign out
       if (event === "SIGNED_OUT") {
-        // Clear favorites from localStorage on logout
         clearFavoritesFromStorage()
         router.push("/")
       }
@@ -71,7 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     setLoading(true)
-    // Clear favorites before signing out
     clearFavoritesFromStorage()
     await supabase.auth.signOut()
     setLoading(false)

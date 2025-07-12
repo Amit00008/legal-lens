@@ -9,44 +9,32 @@ import { Progress } from "@/components/ui/progress"
 import {
   ArrowLeft,
   Download,
-  Share2,
   AlertTriangle,
   CheckCircle,
   Brain,
   HelpCircle,
   Eye,
   Clock,
-  Users,
   Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
-import { useAuth } from "@/components/auth-provider"
 import { analysisApi, documentApi } from "@/lib/api"
 import { type Analysis as SupabaseAnalysis } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
-export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
+export default function SharedAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
   const [analysis, setAnalysis] = useState<SupabaseAnalysis | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSharing, setIsSharing] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
-  const { user, loading } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
 
   // Unwrap params using React.use() as required by Next.js 15
   const resolvedParams = use(params)
   const documentId = resolvedParams.id // string
-
-  // Auth protection - redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login?redirectTo=/analysis/" + documentId)
-    }
-  }, [user, loading, router, documentId])
 
   useEffect(() => {
     loadAnalysis()
@@ -73,36 +61,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       })
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleShare = async () => {
-    if (!analysis) return
-
-    setIsSharing(true)
-    try {
-      const result = await analysisApi.shareAnalysis(analysis.document_id)
-      if (result.success && result.shareUrl) {
-        await navigator.clipboard.writeText(result.shareUrl)
-        toast({
-          title: "✅ Success",
-          description: "Share link copied to clipboard",
-        })
-      } else {
-        toast({
-          title: "❌ Error",
-          description: result.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Failed to generate share link",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSharing(false)
     }
   }
 
@@ -156,13 +114,13 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           toast({
             title: "📄 Success",
             description: "Report downloaded successfully",
-        })
-      } else {
-        toast({
+          })
+        } else {
+          toast({
             title: "❌ Error",
-          description: result.message,
-          variant: "destructive",
-        })
+            description: result.message,
+            variant: "destructive",
+          })
         }
       }
     } catch (error) {
@@ -235,23 +193,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     }));
   };
 
-  // Show loading state if auth is still loading
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Don't render if not authenticated
-  if (!user) {
-    return null
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -274,11 +215,11 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         <div className="container mx-auto px-4 py-4 sm:py-8 text-center">
           <AlertTriangle className="h-8 w-8 sm:h-12 sm:w-12 text-red-600 mx-auto mb-4" />
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Analysis Not Found</h1>
-          <p className="text-sm sm:text-base text-gray-600 mb-4">The requested analysis could not be found.</p>
-          <Link href="/dashboard">
+          <p className="text-sm sm:text-base text-gray-600 mb-4">The requested analysis could not be found or is not publicly accessible.</p>
+          <Link href="/">
             <Button>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              Back to Home
             </Button>
           </Link>
         </div>
@@ -305,7 +246,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 truncate">
-                Analysis
+                Shared Analysis
               </h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm sm:text-base text-gray-600">
                 <span className="flex items-center">
@@ -332,15 +273,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-            <Button
-              variant="outline"
-              onClick={handleShare}
-              disabled={isSharing}
-              className="w-full sm:w-auto bg-transparent"
-            >
-              {isSharing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />}
-              Share
-            </Button>
             <Button onClick={handleDownload} disabled={isDownloading} className="w-full sm:w-auto">
               {isDownloading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -350,7 +282,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
               <span className="hidden sm:inline">Download Report</span>
               <span className="sm:hidden">Download</span>
             </Button>
-          
           </div>
 
           {/* Overall Score */}
@@ -448,7 +379,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     {suggestedQuestions.length > 3 && (
                       <div className="text-sm text-gray-500">
                         +{suggestedQuestions.length - 3} more questions
-                  </div>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -532,4 +463,4 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       </div>
     </div>
   )
-}
+} 

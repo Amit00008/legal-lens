@@ -44,9 +44,8 @@ export default function LoginPage() {
 
       if (error) {
         setError(error.message)
-      } else if (data.user) {
-        router.push(redirectTo)
       }
+      // Let AuthProvider handle the redirect
     } catch (error) {
       setError("An unexpected error occurred")
     } finally {
@@ -62,6 +61,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       }
+      // OAuth will handle redirect automatically
     } catch (error) {
       setError("An unexpected error occurred")
     } finally {
@@ -77,6 +77,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       }
+      // OAuth will handle redirect automatically
     } catch (error) {
       setError("An unexpected error occurred")
     } finally {

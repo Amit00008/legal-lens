@@ -19,19 +19,18 @@ export type Document = {
   user_id: string
   title: string
   file_path: string
-  status: "processing" | "completed" | "failed"
-  risk_level?: "low" | "medium" | "high"
+  status: string
   created_at: string
-  updated_at: string
+  processed_at: string | null
 }
 
 export type Analysis = {
   id: string
   document_id: string
   summary: string
-  risk_score: number
-  key_findings: any[]
-  categories: any[]
-  suggested_questions: string[]
+  risk_score: string
+  risks_detected: any
+  categories: any
+  suggested_questions: any
   created_at: string
 }

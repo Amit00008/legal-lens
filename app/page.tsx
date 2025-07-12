@@ -7,9 +7,27 @@ import { Shield, FileText, Brain, Users, Upload, Search, Download, ArrowRight, C
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { useAuth } from "@/components/auth-provider"
+import { useEffect, useState } from "react"
+import { documentApi } from "@/lib/api"
+
 
 export default function HomePage() {
   const { user, loading } = useAuth()
+  const [docCount, setDocCount] = useState(0)
+
+  useEffect(()=>{
+    const fetchDocs = async () => {
+      if (user){
+      const documents = await documentApi.getDocuments(user.id)
+      setDocCount(documents.length)
+    } else {
+      
+    }
+
+    }
+
+    fetchDocs()
+  },[user])
 
   const HeroSection = () => {
     if (loading) {
@@ -60,13 +78,13 @@ export default function HomePage() {
             </div>
 
             {/* Quick Stats for Logged In Users */}
-            <div className="grid md:grid-cols-3 gap-6 mt-16 max-w-2xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-6 mt-16 max-w-2xl mx-auto">
               <Card className="border-0 shadow-lg">
                 <CardHeader className="text-center">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
                     <FileText className="h-6 w-6 text-blue-600" />
                   </div>
-                  <CardTitle className="text-2xl font-bold">4</CardTitle>
+                  <CardTitle className="text-2xl font-bold">{docCount}</CardTitle>
                   <CardDescription>Documents Analyzed</CardDescription>
                 </CardHeader>
               </Card>
@@ -76,20 +94,12 @@ export default function HomePage() {
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
                     <CheckCircle className="h-6 w-6 text-green-600" />
                   </div>
-                  <CardTitle className="text-2xl font-bold">3</CardTitle>
+                  <CardTitle className="text-2xl font-bold">{docCount}</CardTitle>
                   <CardDescription>Completed Reviews</CardDescription>
                 </CardHeader>
               </Card>
 
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="text-center">
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Brain className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <CardTitle className="text-2xl font-bold">12</CardTitle>
-                  <CardDescription>AI Insights Generated</CardDescription>
-                </CardHeader>
-              </Card>
+              
             </div>
           </div>
         </section>
@@ -114,9 +124,9 @@ export default function HomePage() {
                 Analyze Your First Document
               </Button>
             </Link>
-            <Link href="/demo">
+            <Link href="/support">
               <Button variant="outline" size="lg" className="text-lg px-8 py-3 bg-transparent">
-                View Demo
+                Support
               </Button>
             </Link>
           </div>
@@ -302,7 +312,11 @@ export default function HomePage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <Shield className="h-6 w-6" />
+                <img
+    src="/logo.png"
+    alt="LegalLens AI Logo"
+    className="h-10 sm:h-12 w-auto object-contain"
+  />
                 <span className="text-xl font-bold">LegalLens AI</span>
               </div>
               <p className="text-gray-400">Making legal documents accessible and understandable for everyone.</p>
@@ -317,12 +331,12 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="#pricing" className="hover:text-white">
-                    Pricing
+                  <Link href="#how-it-works" className="hover:text-white">
+                    How it works
                   </Link>
                 </li>
                 <li>
-                  <Link href="/demo" className="hover:text-white">
+                  <Link href="/shared/analysis/620101bd-d58d-430c-9920-3476684af621" className="hover:text-white">
                     Demo
                   </Link>
                 </li>
@@ -332,13 +346,9 @@ export default function HomePage() {
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-gray-400">
+              
                 <li>
-                  <Link href="/about" className="hover:text-white">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-white">
+                  <Link href="https://www.amitfr.tech/contact" className="hover:text-white">
                     Contact
                   </Link>
                 </li>
@@ -354,15 +364,11 @@ export default function HomePage() {
               <h3 className="font-semibold mb-4">Support</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>
-                  <Link href="/help" className="hover:text-white">
-                    Help Center
+                  <Link href="/support" className="hover:text-white">
+                    Support
                   </Link>
                 </li>
-                <li>
-                  <Link href="/docs" className="hover:text-white">
-                    Documentation
-                  </Link>
-                </li>
+               
                 <li>
                   <Link href="/status" className="hover:text-white">
                     Status
@@ -373,7 +379,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 LegalLens AI. All rights reserved.</p>
+            <p>&copy; 2025 LegalLens AI. All rights reserved.</p>
           </div>
         </div>
       </footer>

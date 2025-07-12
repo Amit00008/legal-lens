@@ -15,10 +15,14 @@ export function Navbar() {
     return (
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-            <span className="text-lg sm:text-2xl font-bold text-gray-900">LegalLens AI</span>
-          </Link>
+         <Link href="/" className="flex items-center space-x-3">
+  <img
+    src="/logo.png"
+    alt="LegalLens AI Logo"
+    className="h-10 sm:h-12 w-auto object-contain"
+  />
+  <span className="text-xl sm:text-3xl font-bold text-gray-900">LegalLens AI</span>
+</Link>
           <div className="w-16 sm:w-20 h-8 sm:h-9 bg-gray-200 animate-pulse rounded"></div>
         </div>
       </header>
@@ -28,10 +32,14 @@ export function Navbar() {
   return (
     <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center space-x-2">
-          <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-          <span className="text-lg sm:text-2xl font-bold text-gray-900">LegalLens AI</span>
-        </Link>
+       <Link href="/" className="flex items-center space-x-3">
+  <img
+    src="/logo.png"
+    alt="LegalLens AI Logo"
+    className="h-10 sm:h-12 w-auto object-contain"
+  />
+  <span className="text-xl sm:text-3xl font-bold text-gray-900">LegalLens AI</span>
+</Link>
 
         {!user ? (
           <>
@@ -43,9 +51,7 @@ export function Navbar() {
               <Link href="#how-it-works" className="text-gray-600 hover:text-gray-900">
                 How it Works
               </Link>
-              <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
-                Pricing
-              </Link>
+              
             </nav>
             <div className="flex items-center space-x-2 sm:space-x-4">
               <Link href="/login">
@@ -81,11 +87,12 @@ export function Navbar() {
               </Link>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {user.user_metadata?.full_name?.[0] || user.email?.[0] || "U"}
-                    </div>
-                  </Button>
+                 <Button variant="ghost" className="p-0">
+  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+    {user.user_metadata?.full_name?.[0] || user.email?.[0] || "U"}
+  </div>
+</Button>
+
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5 text-sm">

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,8 +14,10 @@ import { Shield, Upload, FileText, X, CheckCircle, AlertCircle, ArrowLeft, Loade
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
-import { documentApi, utils } from "@/lib/api"
+import { useAuth } from "@/components/auth-provider"
+import { documentApi } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
 
 export default function UploadPage() {
   const [dragActive, setDragActive] = useState(false)
@@ -25,10 +27,30 @@ export default function UploadPage() {
   const [autoDelete, setAutoDelete] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStep, setUploadStep] = useState<string>("")
   const [uploadComplete, setUploadComplete] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [documentId, setDocumentId] = useState<string>("")
   const router = useRouter()
+  const { user, loading } = useAuth()
   const { toast } = useToast()
+
+  // Auth protection - redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login?redirectTo=/upload")
+    }
+  }, [user, loading, router])
+
+  // Reset form when upload completes
+  useEffect(() => {
+    if (uploadComplete) {
+      const timer = setTimeout(() => {
+        router.push("/dashboard")
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [uploadComplete, router])
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -63,18 +85,21 @@ export default function UploadPage() {
     const validFiles: File[] = []
 
     newFiles.forEach((file) => {
-      const validation = utils.validateFile(file)
-      if (validation.valid) {
-        validFiles.push(file)
+      const validTypes = ["application/pdf"]
+      const maxSize = 10 * 1024 * 1024 // 10MB
+      if (!validTypes.includes(file.type)) {
+        errors.push(`${file.name}: Invalid file type. Only PDF files are supported.`)
+      } else if (file.size > maxSize) {
+        errors.push(`${file.name}: File size exceeds 10MB limit.`)
       } else {
-        errors.push(`${file.name}: ${validation.error}`)
+        validFiles.push(file)
       }
     })
 
     if (errors.length > 0) {
       setValidationErrors(errors)
       toast({
-        title: "File Validation Error",
+        title: "⚠️ File Validation Error",
         description: `${errors.length} file(s) were rejected`,
         variant: "destructive",
       })
@@ -96,61 +121,231 @@ export default function UploadPage() {
     e.preventDefault()
     if (files.length === 0) {
       toast({
-        title: "Error",
-        description: "Please select at least one file to upload",
+        title: "❌ Error",
+        description: "Please select a PDF file to upload",
         variant: "destructive",
       })
       return
     }
+    if (!user) return
 
     setIsUploading(true)
     setUploadProgress(0)
+    setUploadStep("Preparing upload...")
+    setUploadComplete(false)
+    setValidationErrors([])
 
     try {
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
-          }
-          return prev + 10
-        })
-      }, 200)
-
-      const result = await documentApi.uploadDocument(files, title, description, autoDelete)
-
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-
-      if (result.success) {
-        setUploadComplete(true)
+      const file = files[0]
+      if (file.type !== "application/pdf") {
         toast({
-          title: "Success",
-          description: result.message,
-        })
-
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 2000)
-      } else {
-        toast({
-          title: "Upload Failed",
-          description: result.message,
+          title: "❌ Error",
+          description: "Only PDF files are supported",
           variant: "destructive",
         })
         setIsUploading(false)
+        return
+      }
+
+      // Step 1: Upload to Supabase Storage
+      let filePath = ""
+      if (!autoDelete) {
+        // Step 1: Upload to Supabase Storage
+        setUploadStep("Uploading file to storage...")
+        setUploadProgress(10)
+      
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}-${user.id}.${fileExt}`
+        filePath = `${user.id}/${fileName}`
+      
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from('pdfs')
+          .upload(filePath, file, { upsert: true })
+      
+        if (storageError) {
+          toast({ 
+            title: "❌ Upload Failed", 
+            description: storageError.message, 
+            variant: "destructive" 
+          })
+          setIsUploading(false)
+          setUploadStep("")
+          return
+        }
+      } else {
+        setUploadStep("Skipping file storage (auto-delete enabled)...")
+        toast({ 
+          title: "🧠 Notice", 
+          description: "Skipping file storage (auto-delete enabled)...", 
+          variant: "default" 
+        })
+        setUploadProgress(10)
+      }
+      setUploadProgress(30)
+      setUploadStep("Creating document record...")
+
+      // Step 2: Create document row in DB
+      const docRes = await documentApi.uploadDocument(user.id, title || file.name, filePath, 'processing')
+      if (!docRes.success || !docRes.documentId) {
+        toast({ 
+          title: "❌ Error", 
+          description: docRes.message, 
+          variant: "destructive" 
+        })
+        setIsUploading(false)
+        setUploadStep("")
+        return
+      }
+      
+      const docId = docRes.documentId
+      setDocumentId(docId)
+      setUploadProgress(50)
+      setUploadStep("Extracting text from PDF...")
+
+      // Step 3: Extract text from PDF using Hugging Face Space
+      setUploadProgress(55)
+      
+      let pdfText = ""
+      try {
+        // Create FormData to send file directly
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        // Send to Hugging Face Space for text extraction
+        const extractRes = await fetch('https://amit098-legal-lens.hf.space/extract-text', {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer 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",
+            "api_key": "amit123"
+          },
+          body: formData
+        })
+        
+        if (!extractRes.ok) {
+          const errorData = await extractRes.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP ${extractRes.status}: Failed to extract text`)
+        }
+        
+        const result = await extractRes.json()
+        pdfText = result.extracted_text || result.text || ""
+        
+        if (!pdfText || pdfText.trim().length === 0) {
+          toast({
+            title: "⚠️ Warning",
+            description: "Could not extract text from PDF. The file might be image-based or corrupted.",
+            variant: "destructive",
+          })
+          pdfText = "[No text could be extracted from this PDF]"
+        } else {
+       
+        }
+        
+      } catch (extractError) {
+        console.error('PDF text extraction error:', extractError)
+        toast({
+          title: "❌ Extraction Failed",
+          description: `Failed to extract text: ${extractError instanceof Error ? extractError.message : 'Unknown error'}`,
+          variant: "destructive",
+        })
+        pdfText = "[PDF text extraction failed]"
+      }
+
+      // Step 4: Start background analysis
+      setUploadStep("Starting AI analysis in background...")
+      setUploadProgress(60)
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token || '';
+      
+      const analyzeRes = await fetch("/api/analyze-background", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ pdf_text: pdfText, document_id: docId }),
+      })
+      
+      if (!analyzeRes.ok) {
+        const errorData = await analyzeRes.json().catch(() => ({}))
+        toast({ 
+          title: "❌ Analysis Failed", 
+          description: errorData.error || "Failed to start analysis.", 
+          variant: "destructive" 
+        })
+        setIsUploading(false)
+        setUploadStep("")
+        return
+      }
+
+      setUploadProgress(70)
+      setUploadStep("Analysis started! You can close this tab. Checking status...")
+
+      // Step 5: Poll for document status with longer timeout
+      let status = 'processing'
+      let pollCount = 0
+      const maxPolls = 180 // 3 minutes total (180 * 1 second intervals)
+      
+      while (status === 'processing' && pollCount < maxPolls) {
+        await new Promise((res) => setTimeout(res, 2000)) // Poll every 2 seconds
+        try {
+          const doc = await documentApi.getDocument(docId)
+          status = doc?.status || 'processing'
+          setUploadProgress(70 + (pollCount * 30 / maxPolls))
+          setUploadStep(`Analysis in progress... (${Math.floor(pollCount / 30)}:${(Math.floor((pollCount % 30) * 2)).toString().padStart(2, '0')} elapsed)`)
+          pollCount++
+        } catch (error) {
+          console.error('Error polling document status:', error)
+          pollCount++
+        }
+      }
+
+      if (status === 'completed') {
+        setUploadProgress(100)
+        setUploadStep("Analysis completed successfully!")
+        setUploadComplete(true)
+        toast({ 
+          title: "✅ Success", 
+          description: "Document analyzed successfully! Redirecting to dashboard..." 
+        })
+      } else {
+        toast({ 
+          title: "❌ Error", 
+          description: "Analysis failed or timed out.", 
+          variant: "destructive" 
+        })
+        setIsUploading(false)
         setUploadProgress(0)
+        setUploadStep("")
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred during upload",
-        variant: "destructive",
+      console.error('Upload error:', error)
+      toast({ 
+        title: "❌ Error", 
+        description: "An unexpected error occurred during upload", 
+        variant: "destructive" 
       })
       setIsUploading(false)
       setUploadProgress(0)
+      setUploadStep("")
     }
+  }
+
+  // Show loading state if auth is still loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null
   }
 
   return (
@@ -235,7 +430,7 @@ export default function UploadPage() {
                         <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{file.name}</p>
-                          <p className="text-xs sm:text-sm text-gray-600">{utils.formatFileSize(file.size)}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">{file.size}</p>
                         </div>
                       </div>
                       <Button
@@ -254,151 +449,150 @@ export default function UploadPage() {
               )}
 
               {/* Document Details */}
-              <div className="space-y-4">
-                <div>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-2">
                   <Label htmlFor="title" className="text-sm sm:text-base">
                     Document Title (Optional)
                   </Label>
                   <Input
                     id="title"
-                    placeholder="e.g., Service Agreement - Company Name"
+                    placeholder="Enter a title for your document"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     disabled={isUploading}
-                    className="mt-1"
                   />
                 </div>
 
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm sm:text-base">
                     Description (Optional)
                   </Label>
                   <Textarea
                     id="description"
-                    placeholder="Add any context or specific areas you'd like us to focus on..."
+                    placeholder="Add any additional context about this document"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
                     disabled={isUploading}
-                    className="mt-1"
+                    rows={3}
                   />
                 </div>
-              </div>
 
-              {/* Privacy Options */}
-              <div className="space-y-4 p-3 sm:p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-start space-x-3">
-                  <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Privacy & Security</h3>
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      Your documents are encrypted and processed securely
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="auto-delete"
                     checked={autoDelete}
                     onCheckedChange={(checked) => setAutoDelete(checked as boolean)}
                     disabled={isUploading}
-                    className="mt-0.5"
                   />
-                  <Label htmlFor="auto-delete" className="text-xs sm:text-sm leading-relaxed">
-                    Auto-delete document after analysis (recommended for sensitive documents)
+                  <Label htmlFor="auto-delete" className="text-sm sm:text-base">
+                    Auto-delete after analysis (recommended for sensitive documents)
                   </Label>
                 </div>
               </div>
 
               {/* Upload Progress */}
               {isUploading && (
-                <div className="space-y-2">
+                <div className="space-y-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {uploadComplete ? "Analysis complete!" : "Uploading and analyzing..."}
-                    </span>
-                    <span className="text-sm text-gray-600">{uploadProgress}%</span>
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="font-medium text-blue-900">{uploadStep}</span>
+                    </div>
+                    <span className="text-sm font-medium text-blue-700">{uploadProgress}%</span>
                   </div>
                   <Progress value={uploadProgress} className="w-full" />
-                  {uploadComplete && (
-                    <div className="flex items-center space-x-2 text-green-600">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm">Upload successful! Redirecting to dashboard...</span>
+                  
+                  {/* Step indicators */}
+                  <div className="grid grid-cols-6 gap-2 text-xs">
+                    <div className={`text-center ${uploadProgress >= 10 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      <div className={`w-2 h-2 rounded-full mx-auto mb-1 ${uploadProgress >= 10 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                      Upload
                     </div>
-                  )}
+                    <div className={`text-center ${uploadProgress >= 30 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      <div className={`w-2 h-2 rounded-full mx-auto mb-1 ${uploadProgress >= 30 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                      Create
+                    </div>
+                    <div className={`text-center ${uploadProgress >= 50 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      <div className={`w-2 h-2 rounded-full mx-auto mb-1 ${uploadProgress >= 50 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                      Extract
+                    </div>
+                    <div className={`text-center ${uploadProgress >= 60 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      <div className={`w-2 h-2 rounded-full mx-auto mb-1 ${uploadProgress >= 60 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                      Start Analysis
+                    </div>
+                    <div className={`text-center ${uploadProgress >= 70 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      <div className={`w-2 h-2 rounded-full mx-auto mb-1 ${uploadProgress >= 70 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                      Monitor
+                    </div>
+                    <div className={`text-center ${uploadProgress >= 100 ? 'text-green-600' : 'text-gray-400'}`}>
+                      <div className={`w-2 h-2 rounded-full mx-auto mb-1 ${uploadProgress >= 100 ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                      Complete
+                    </div>
+                  </div>
+                  
+                  {/* Info message */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <span className="text-xs text-blue-800 font-medium">
+                        ✅ Analysis runs in background. You can close this tab and check back later!
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Complete */}
+              {uploadComplete && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div>
+                      <h3 className="text-green-800 font-semibold text-lg">Upload Complete!</h3>
+                      <p className="text-green-700 text-sm">Your document has been successfully analyzed.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-green-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Document ID:</span>
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">{documentId}</code>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Status:</span>
+                      <span className="text-sm text-green-600 font-medium">Completed</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center space-x-2 text-sm text-green-700">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Redirecting to dashboard in 3 seconds...</span>
+                  </div>
                 </div>
               )}
 
               {/* Submit Button */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-                <Link href="/dashboard" className="w-full sm:w-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isUploading}
-                    className="w-full sm:w-auto bg-transparent"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Dashboard
-                  </Button>
-                </Link>
-
-                <Button
-                  type="submit"
-                  disabled={files.length === 0 || isUploading}
-                  className="w-full sm:w-auto min-w-[140px]"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {uploadProgress < 90 ? "Uploading..." : "Analyzing..."}
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Start Analysis
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isUploading || files.length === 0}
+                size="lg"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload and Analyze
+                  </>
+                )}
+              </Button>
             </form>
           </CardContent>
         </Card>
-
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 sm:mt-8">
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-start space-x-3">
-                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-green-900 text-sm sm:text-base">What You'll Get</h3>
-                  <ul className="text-xs sm:text-sm text-green-800 mt-1 space-y-1">
-                    <li>• Plain English summary</li>
-                    <li>• Risk assessment</li>
-                    <li>• Key clause identification</li>
-                    <li>• Expert questions to ask</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-blue-900 text-sm sm:text-base">Processing Time</h3>
-                  <p className="text-xs sm:text-sm text-blue-800 mt-1">
-                    Most documents are analyzed within 2-5 minutes. Complex documents may take longer.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   )
