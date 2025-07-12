@@ -1,10 +1,15 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = "https://bhormxhmsizpneyvlbok.supabase.co"
-const supabaseAnonKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJob3JteGhtc2l6cG5leXZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MTQzNzgsImV4cCI6MjA2NzI5MDM3OH0.Z3eUBj9iKl-a8umVuOz9wCbJ3tKVMmkjZiz831mw_bI"
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJob3JteGhtc2l6cG5leXZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MTQzNzgsImV4cCI6MjA2NzI5MDM3OH0.Z3eUBj9iKl-a8umVuOz9wCbJ3tKVMmkjZiz831mw_bI"
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
 
 // Types for our database
 export type User = {

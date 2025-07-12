@@ -1,12 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-import { clearFavoritesFromStorage } from "@/app/dashboard/page"
 
 type AuthContextType = {
   user: User | null
@@ -36,9 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
       setLoading(false)
     }
@@ -46,38 +41,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getInitialSession()
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null)
+        setLoading(false)
 
-      // Handle successful sign in
-      if (event === "SIGNED_IN" && session) {
-        const redirectTo = new URLSearchParams(window.location.search).get("redirectTo")
-        if (redirectTo) {
-          router.push(redirectTo)
-        } else {
-          router.push("/dashboard")
+        if (event === "SIGNED_IN") {
+          // Let the middleware handle redirects
+          console.log("User signed in")
+        }
+
+        if (event === "SIGNED_OUT") {
+          console.log("User signed out")
+          router.push("/")
         }
       }
-
-      // Handle sign out
-      if (event === "SIGNED_OUT") {
-        clearFavoritesFromStorage()
-        router.push("/")
-      }
-    })
+    )
 
     return () => subscription.unsubscribe()
   }, [router])
 
   const handleSignOut = async () => {
-    setLoading(true)
-    clearFavoritesFromStorage()
-    await supabase.auth.signOut()
-    setLoading(false)
+    try {
+      setLoading(true)
+      
+      // Clear user state immediately
+      setUser(null)
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut()
+      
+      // Redirect to home
+      router.push("/")
+    } catch (error) {
+      console.error("Signout error:", error)
+      // Still redirect even if there's an error
+      router.push("/")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  return <AuthContext.Provider value={{ user, loading, signOut: handleSignOut }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, loading, signOut: handleSignOut }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }

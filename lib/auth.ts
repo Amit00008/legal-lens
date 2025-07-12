@@ -10,7 +10,6 @@ export const signUp = async (email: string, password: string, fullName: string) 
       },
     },
   })
-
   return { data, error }
 }
 
@@ -19,7 +18,6 @@ export const signIn = async (email: string, password: string) => {
     email,
     password,
   })
-
   return { data, error }
 }
 
@@ -29,31 +27,26 @@ export const signOut = async () => {
 }
 
 export const getCurrentUser = async () => {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
   return { user, error }
 }
 
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = async (redirectTo?: string) => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/dashboard`,
+      redirectTo: `${window.location.origin}${redirectTo || '/dashboard'}`,
     },
   })
-
   return { data, error }
 }
 
-export const signInWithGithub = async () => {
+export const signInWithGithub = async (redirectTo?: string) => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: `${window.location.origin}/dashboard`,
+      redirectTo: `${window.location.origin}${redirectTo || '/dashboard'}`,
     },
   })
-
   return { data, error }
 }

@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,11 +39,10 @@ export default function LoginPage() {
 
     try {
       const { data, error } = await signIn(email, password)
-
       if (error) {
         setError(error.message)
       }
-      // Let AuthProvider handle the redirect
+      // Let the middleware handle redirects
     } catch (error) {
       setError("An unexpected error occurred")
     } finally {
@@ -57,11 +54,10 @@ export default function LoginPage() {
     setIsGoogleLoading(true)
     setError("")
     try {
-      const { error } = await signInWithGoogle()
+      const { error } = await signInWithGoogle(redirectTo)
       if (error) {
         setError(error.message)
       }
-      // OAuth will handle redirect automatically
     } catch (error) {
       setError("An unexpected error occurred")
     } finally {
@@ -73,11 +69,10 @@ export default function LoginPage() {
     setIsGithubLoading(true)
     setError("")
     try {
-      const { error } = await signInWithGithub()
+      const { error } = await signInWithGithub(redirectTo)
       if (error) {
         setError(error.message)
       }
-      // OAuth will handle redirect automatically
     } catch (error) {
       setError("An unexpected error occurred")
     } finally {
